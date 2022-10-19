@@ -1,17 +1,12 @@
 mod msg;
 mod querier;
 mod query;
-mod types;
 
-pub use msg::OsmosisMsg;
-pub use querier::OsmosisQuerier;
-pub use query::{
-    ArithmeticTwapResponse, ArithmeticTwapToNowResponse, FullDenomResponse, OsmosisQuery,
-    PoolStateResponse, SpotPriceResponse, SwapResponse,
-};
-pub use types::{Step, Swap, SwapAmount, SwapAmountWithLimit};
+pub use msg::{TokenFactoryMsg, TokenMsg};
+pub use querier::TokenQuerier;
+pub use query::{TokenFactoryQuery, FullDenomResponse, TokenQuery};
 
-// This is a signal, such that any contract that imports these helpers will only run on the
-// osmosis blockchain
+// This is a signal, such that any contract that imports these helpers will only run on
+// blockchains that support token_factory feature
 #[no_mangle]
-extern "C" fn requires_osmosis() {}
+extern "C" fn requires_token_factory() {}

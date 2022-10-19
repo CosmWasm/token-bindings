@@ -1,12 +1,17 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{CosmosMsg, CustomMsg, Uint128};
 
-use crate::types::SwapAmountWithLimit;
-use crate::{Step, Swap};
-
-/// A number of Custom messages that can call into the Osmosis bindings
+/// A top-level Custom message for the token factory.
+/// It is embedded like this to easily allow adding other variants that are custom
+/// to your chain, or other "standardized" extensions along side it.
 #[cw_serde]
-pub enum OsmosisMsg {
+pub enum TokenFactoryMsg {
+    Token(TokenMsg),
+}
+
+/// Special messages to be supported by any chain that supports token_factory
+#[cw_serde]
+pub enum TokenMsg {
     /// CreateDenom creates a new factory denom, of denomination:
     /// factory/{creating contract bech32 address}/{Subdenom}
     /// Subdenom can be of length at most 44 characters, in [0-9a-zA-Z./]
@@ -37,32 +42,12 @@ pub enum OsmosisMsg {
         amount: Uint128,
         burn_from_address: String,
     },
-    /// Swap over one or more pools
-    /// Returns SwapResponse in the data field of the Response
-    Swap {
-        first: Swap,
-        route: Vec<Step>,
-        amount: SwapAmountWithLimit,
-    },
+    // TODO: consider more meta-data extensions
 }
 
-impl OsmosisMsg {
-    /// Basic helper to define a swap with one pool
-    pub fn simple_swap(
-        pool_id: u64,
-        denom_in: impl Into<String>,
-        denom_out: impl Into<String>,
-        amount: SwapAmountWithLimit,
-    ) -> Self {
-        OsmosisMsg::Swap {
-            first: Swap::new(pool_id, denom_in, denom_out),
-            amount,
-            route: vec![],
-        }
-    }
-
+impl TokenMsg {
     pub fn mint_contract_tokens(denom: String, amount: Uint128, mint_to_address: String) -> Self {
-        OsmosisMsg::MintTokens {
+        TokenMsg::MintTokens {
             denom,
             amount,
             mint_to_address,
@@ -74,7 +59,7 @@ impl OsmosisMsg {
         amount: Uint128,
         _burn_from_address: String,
     ) -> Self {
-        OsmosisMsg::BurnTokens {
+        TokenMsg::BurnTokens {
             denom,
             amount,
             burn_from_address: "".to_string(), // burn_from_address is currently disabled.
@@ -82,10 +67,10 @@ impl OsmosisMsg {
     }
 }
 
-impl From<OsmosisMsg> for CosmosMsg<OsmosisMsg> {
-    fn from(msg: OsmosisMsg) -> CosmosMsg<OsmosisMsg> {
-        CosmosMsg::Custom(msg)
+impl From<TokenMsg> for CosmosMsg<TokenFactoryMsg> {
+    fn from(msg: TokenMsg) -> CosmosMsg<TokenFactoryMsg> {
+        CosmosMsg::Custom(TokenFactoryMsg::Token(msg))
     }
 }
 
-impl CustomMsg for OsmosisMsg {}
+impl CustomMsg for TokenFactoryMsg {}
