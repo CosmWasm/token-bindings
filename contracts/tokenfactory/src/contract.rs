@@ -8,7 +8,7 @@ use cw2::set_contract_version;
 use crate::error::TokenFactoryError;
 use crate::msg::{ExecuteMsg, GetDenomResponse, InstantiateMsg, QueryMsg};
 use crate::state::{State, STATE};
-use osmo_bindings::{OsmosisMsg, OsmosisQuerier, OsmosisQuery};
+use token_bindings::{TokenFactoryMsg, TokenFactoryQuery, TokenMsg, TokenQuerier};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:tokenfactory-demo";
@@ -16,7 +16,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut<OsmosisQuery>,
+    deps: DepsMut<TokenFactoryQuery>,
     _env: Env,
     info: MessageInfo,
     _msg: InstantiateMsg,
@@ -34,11 +34,11 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut<OsmosisQuery>,
+    deps: DepsMut<TokenFactoryQuery>,
     _env: Env,
     _info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response<OsmosisMsg>, TokenFactoryError> {
+) -> Result<Response<TokenFactoryMsg>, TokenFactoryError> {
     match msg {
         ExecuteMsg::CreateDenom { subdenom } => create_denom(subdenom),
         ExecuteMsg::ChangeAdmin {
@@ -58,12 +58,12 @@ pub fn execute(
     }
 }
 
-pub fn create_denom(subdenom: String) -> Result<Response<OsmosisMsg>, TokenFactoryError> {
+pub fn create_denom(subdenom: String) -> Result<Response<TokenFactoryMsg>, TokenFactoryError> {
     if subdenom.eq("") {
         return Err(TokenFactoryError::InvalidSubdenom { subdenom });
     }
 
-    let create_denom_msg = OsmosisMsg::CreateDenom { subdenom };
+    let create_denom_msg = TokenMsg::CreateDenom { subdenom };
 
     let res = Response::new()
         .add_attribute("method", "create_denom")
@@ -73,15 +73,15 @@ pub fn create_denom(subdenom: String) -> Result<Response<OsmosisMsg>, TokenFacto
 }
 
 pub fn change_admin(
-    deps: DepsMut<OsmosisQuery>,
+    deps: DepsMut<TokenFactoryQuery>,
     denom: String,
     new_admin_address: String,
-) -> Result<Response<OsmosisMsg>, TokenFactoryError> {
+) -> Result<Response<TokenFactoryMsg>, TokenFactoryError> {
     deps.api.addr_validate(&new_admin_address)?;
 
     validate_denom(deps, denom.clone())?;
 
-    let change_admin_msg = OsmosisMsg::ChangeAdmin {
+    let change_admin_msg = TokenMsg::ChangeAdmin {
         denom,
         new_admin_address,
     };
@@ -94,11 +94,11 @@ pub fn change_admin(
 }
 
 pub fn mint_tokens(
-    deps: DepsMut<OsmosisQuery>,
+    deps: DepsMut<TokenFactoryQuery>,
     denom: String,
     amount: Uint128,
     mint_to_address: String,
-) -> Result<Response<OsmosisMsg>, TokenFactoryError> {
+) -> Result<Response<TokenFactoryMsg>, TokenFactoryError> {
     deps.api.addr_validate(&mint_to_address)?;
 
     if amount.eq(&Uint128::new(0_u128)) {
@@ -107,7 +107,7 @@ pub fn mint_tokens(
 
     validate_denom(deps, denom.clone())?;
 
-    let mint_tokens_msg = OsmosisMsg::mint_contract_tokens(denom, amount, mint_to_address);
+    let mint_tokens_msg = TokenMsg::mint_contract_tokens(denom, amount, mint_to_address);
 
     let res = Response::new()
         .add_attribute("method", "mint_tokens")
@@ -117,11 +117,11 @@ pub fn mint_tokens(
 }
 
 pub fn burn_tokens(
-    deps: DepsMut<OsmosisQuery>,
+    deps: DepsMut<TokenFactoryQuery>,
     denom: String,
     amount: Uint128,
     burn_from_address: String,
-) -> Result<Response<OsmosisMsg>, TokenFactoryError> {
+) -> Result<Response<TokenFactoryMsg>, TokenFactoryError> {
     if !burn_from_address.is_empty() {
         return Result::Err(TokenFactoryError::BurnFromAddressNotSupported {
             address: burn_from_address,
@@ -134,7 +134,7 @@ pub fn burn_tokens(
 
     validate_denom(deps, denom.clone())?;
 
-    let burn_token_msg = OsmosisMsg::burn_contract_tokens(denom, amount, burn_from_address);
+    let burn_token_msg = TokenMsg::burn_contract_tokens(denom, amount, burn_from_address);
 
     let res = Response::new()
         .add_attribute("method", "burn_tokens")
@@ -144,7 +144,7 @@ pub fn burn_tokens(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps<OsmosisQuery>, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps<TokenFactoryQuery>, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::GetDenom {
             creator_address,
@@ -153,8 +153,12 @@ pub fn query(deps: Deps<OsmosisQuery>, _env: Env, msg: QueryMsg) -> StdResult<Bi
     }
 }
 
-fn get_denom(deps: Deps<OsmosisQuery>, creator_addr: String, subdenom: String) -> GetDenomResponse {
-    let querier = OsmosisQuerier::new(&deps.querier);
+fn get_denom(
+    deps: Deps<TokenFactoryQuery>,
+    creator_addr: String,
+    subdenom: String,
+) -> GetDenomResponse {
+    let querier = TokenQuerier::new(&deps.querier);
     let response = querier.full_denom(creator_addr, subdenom).unwrap();
 
     GetDenomResponse {
@@ -162,7 +166,10 @@ fn get_denom(deps: Deps<OsmosisQuery>, creator_addr: String, subdenom: String) -
     }
 }
 
-fn validate_denom(deps: DepsMut<OsmosisQuery>, denom: String) -> Result<(), TokenFactoryError> {
+fn validate_denom(
+    deps: DepsMut<TokenFactoryQuery>,
+    denom: String,
+) -> Result<(), TokenFactoryError> {
     let denom_to_split = denom.clone();
     let tokenfactory_denom_parts: Vec<&str> = denom_to_split.split('/').collect();
 
@@ -188,7 +195,7 @@ fn validate_denom(deps: DepsMut<OsmosisQuery>, denom: String) -> Result<(), Toke
     }
 
     // Validate denom by attempting to query for full denom
-    let response = OsmosisQuerier::new(&deps.querier)
+    let response = TokenQuerier::new(&deps.querier)
         .full_denom(String::from(creator_address), String::from(subdenom));
     if response.is_err() {
         return Result::Err(TokenFactoryError::InvalidDenom {
@@ -210,16 +217,16 @@ mod tests {
         coins, from_binary, Attribute, ContractResult, CosmosMsg, OwnedDeps, Querier, StdError,
         SystemError, SystemResult,
     };
-    use osmo_bindings::OsmosisQuery;
-    use osmo_bindings_test::OsmosisApp;
     use std::marker::PhantomData;
+    use token_bindings::TokenQuery;
+    use token_bindings_test::TokenFactoryApp;
 
     const DENOM_NAME: &str = "mydenom";
     const DENOM_PREFIX: &str = "factory";
 
     fn mock_dependencies_with_custom_quierier<Q: Querier>(
         querier: Q,
-    ) -> OwnedDeps<MockStorage, MockApi, Q, OsmosisQuery> {
+    ) -> OwnedDeps<MockStorage, MockApi, Q, TokenFactoryQuery> {
         OwnedDeps {
             storage: MockStorage::default(),
             api: MockApi::default(),
@@ -229,13 +236,13 @@ mod tests {
     }
 
     fn mock_dependencies_with_query_error(
-    ) -> OwnedDeps<MockStorage, MockApi, MockQuerier<OsmosisQuery>, OsmosisQuery> {
-        let custom_querier: MockQuerier<OsmosisQuery> =
+    ) -> OwnedDeps<MockStorage, MockApi, MockQuerier<TokenFactoryQuery>, TokenFactoryQuery> {
+        let custom_querier: MockQuerier<TokenFactoryQuery> =
             MockQuerier::new(&[(MOCK_CONTRACT_ADDR, &[])]).with_custom_handler(|a| match a {
-                OsmosisQuery::FullDenom {
+                TokenFactoryQuery::Token(TokenQuery::FullDenom {
                     creator_addr,
                     subdenom,
-                } => {
+                }) => {
                     let binary_request = to_binary(a).unwrap();
 
                     if creator_addr.eq("") {
@@ -252,13 +259,13 @@ mod tests {
                     }
                     SystemResult::Ok(ContractResult::Ok(binary_request))
                 }
-                _ => SystemResult::Err(SystemError::Unknown {}),
             });
         mock_dependencies_with_custom_quierier(custom_querier)
     }
 
-    pub fn mock_dependencies() -> OwnedDeps<MockStorage, MockApi, OsmosisApp, OsmosisQuery> {
-        let custom_querier = OsmosisApp::new();
+    pub fn mock_dependencies() -> OwnedDeps<MockStorage, MockApi, TokenFactoryApp, TokenFactoryQuery>
+    {
+        let custom_querier = TokenFactoryApp::new();
         mock_dependencies_with_custom_quierier(custom_querier)
     }
 
@@ -300,7 +307,7 @@ mod tests {
 
         assert_eq!(1, res.messages.len());
 
-        let expected_message = CosmosMsg::from(OsmosisMsg::CreateDenom {
+        let expected_message = CosmosMsg::from(TokenMsg::CreateDenom {
             subdenom: String::from(DENOM_NAME),
         });
         let actual_message = res.messages.get(0).unwrap();
@@ -351,7 +358,7 @@ mod tests {
 
         assert_eq!(1, res.messages.len());
 
-        let expected_message = CosmosMsg::from(OsmosisMsg::ChangeAdmin {
+        let expected_message = CosmosMsg::from(TokenMsg::ChangeAdmin {
             denom: String::from(full_denom_name),
             new_admin_address: String::from(NEW_ADMIN_ADDR),
         });
@@ -449,7 +456,7 @@ mod tests {
 
         assert_eq!(1, res.messages.len());
 
-        let expected_message = CosmosMsg::from(OsmosisMsg::MintTokens {
+        let expected_message = CosmosMsg::from(TokenMsg::MintTokens {
             denom: String::from(full_denom_name),
             amount: mint_amount,
             mint_to_address: String::from(NEW_ADMIN_ADDR),
@@ -509,7 +516,7 @@ mod tests {
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         assert_eq!(1, res.messages.len());
-        let expected_message = CosmosMsg::from(OsmosisMsg::BurnTokens {
+        let expected_message = CosmosMsg::from(TokenMsg::BurnTokens {
             denom: String::from(full_denom_name),
             amount: mint_amount,
             burn_from_address: String::from(""),
