@@ -1,5 +1,5 @@
 [package]
-name = "osmo-bindings"
+name = "token-bindings"
 version = "0.7.0"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
 edition = "2018"
