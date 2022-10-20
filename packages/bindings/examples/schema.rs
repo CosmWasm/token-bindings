@@ -3,7 +3,7 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use osmo_bindings::{TokenFactoryMsg, TokenFactoryQuery, FullDenomResponse};
+use token_bindings::{TokenFactoryMsg, TokenFactoryQuery, FullDenomResponse};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
