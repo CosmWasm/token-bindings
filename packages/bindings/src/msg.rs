@@ -96,6 +96,11 @@ impl CreateDenomReponse {
         let new_token_denom = copied_from_cw_utils::parse_protobuf_string(&mut data, 1)?;
         Ok(CreateDenomReponse { new_token_denom })
     }
+
+    pub fn encode(&self) -> StdResult<Binary> {
+        // TODO
+        Ok(b"".into())
+    }
 }
 
 // FIXME: just import cw_utils::parse_protobuf_string when it is exported
