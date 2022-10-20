@@ -17,8 +17,8 @@ use cw_multi_test::{
 use cw_storage_plus::Map;
 
 use token_bindings::{
-    CreateDenomReponse, FullDenomResponse, Metadata, TokenFactoryMsg, TokenFactoryQuery, TokenMsg,
-    TokenQuery,
+    AdminResponse, CreateDenomReponse, DenomsByCreatorResponse, FullDenomResponse, Metadata,
+    MetadataResponse, TokenFactoryMsg, TokenFactoryQuery, TokenMsg, TokenQuery,
 };
 
 use crate::error::ContractError;
@@ -79,11 +79,14 @@ impl Module for TokenFactoryModule {
         match msg {
             TokenMsg::CreateDenom { subdenom } => {
                 let new_token_denom = self.build_denom(&sender, &subdenom)?;
+
                 // errors if the denom was already created
                 if ADMIN.may_load(storage, &new_token_denom)?.is_some() {
                     return Err(ContractError::TokenExists.into());
                 }
                 ADMIN.save(storage, &new_token_denom, &sender)?;
+
+                // TODO: charge the creation fee (once params is supported)
 
                 let mut denoms = DENOMS_BY_CREATOR
                     .may_load(storage, &sender)?
@@ -170,7 +173,7 @@ impl Module for TokenFactoryModule {
     fn query(
         &self,
         api: &dyn Api,
-        _storage: &dyn Storage,
+        storage: &dyn Storage,
         _querier: &dyn Querier,
         _block: &BlockInfo,
         request: TokenFactoryQuery,
@@ -186,9 +189,21 @@ impl Module for TokenFactoryModule {
                 let res = FullDenomResponse { denom };
                 Ok(to_binary(&res)?)
             }
-            TokenQuery::Metadata { denom: _ } => todo!(),
-            TokenQuery::Admin { denom: _ } => todo!(),
-            TokenQuery::DenomsByCreator { creator: _ } => todo!(),
+            TokenQuery::Metadata { denom } => {
+                let metadata = METADATA.may_load(storage, &denom)?;
+                Ok(to_binary(&MetadataResponse { metadata })?)
+            }
+            TokenQuery::Admin { denom } => {
+                let admin = ADMIN.load(storage, &denom)?.to_string();
+                Ok(to_binary(&AdminResponse { admin })?)
+            }
+            TokenQuery::DenomsByCreator { creator } => {
+                let creator = api.addr_validate(&creator)?;
+                let denoms = DENOMS_BY_CREATOR
+                    .may_load(storage, &creator)?
+                    .unwrap_or_default();
+                Ok(to_binary(&DenomsByCreatorResponse { denoms })?)
+            }
             TokenQuery::Params {} => todo!(),
         }
     }
