@@ -1,16 +1,22 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Binary, CosmosMsg, QueryRequest, SubMsg};
 
-use osmo_bindings::{OsmosisMsg, OsmosisQuery};
+use token_bindings::{TokenFactoryMsg, TokenFactoryQuery};
 
 #[cw_serde]
 pub struct InstantiateMsg {}
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    ReflectMsg { msgs: Vec<CosmosMsg<OsmosisMsg>> },
-    ReflectSubMsg { msgs: Vec<SubMsg<OsmosisMsg>> },
-    ChangeOwner { owner: String },
+    ReflectMsg {
+        msgs: Vec<CosmosMsg<TokenFactoryMsg>>,
+    },
+    ReflectSubMsg {
+        msgs: Vec<SubMsg<TokenFactoryMsg>>,
+    },
+    ChangeOwner {
+        owner: String,
+    },
 }
 
 #[cw_serde]
@@ -20,7 +26,9 @@ pub enum QueryMsg {
     Owner {},
     /// Queries the blockchain and returns the result untouched
     #[returns(ChainResponse)]
-    Chain { request: QueryRequest<OsmosisQuery> },
+    Chain {
+        request: QueryRequest<TokenFactoryQuery>,
+    },
     /// If there was a previous ReflectSubMsg with this ID, returns cosmwasm_std::Reply
     #[returns(cosmwasm_std::Reply)]
     SubMsgResult { id: u64 },
