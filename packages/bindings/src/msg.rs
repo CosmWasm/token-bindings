@@ -1,6 +1,6 @@
-use crate::metadata::Metadata;
+use crate::types::Metadata;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{CosmosMsg, CustomMsg, Uint128};
+use cosmwasm_std::{Binary, CosmosMsg, CustomMsg, StdResult, Uint128};
 
 /// A top-level Custom message for the token factory.
 /// It is embedded like this to easily allow adding other variants that are custom
@@ -77,3 +77,115 @@ impl From<TokenMsg> for CosmosMsg<TokenFactoryMsg> {
 }
 
 impl CustomMsg for TokenFactoryMsg {}
+
+/// This is in the data field in the reply from a TokenMsg::CreateDenom SubMsg
+/// Custom code to parse from protobuf with minimal wasm bytecode bloat
+pub struct CreateDenomReponse {
+    pub new_token_denom: String,
+}
+
+impl CreateDenomReponse {
+    /// Call this to process data field from the SubMsg data field
+    pub fn from_reply_data(data: Binary) -> StdResult<Self> {
+        // Manual protobuf decoding
+        let mut data = Vec::from(data);
+        // Parse contract addr
+        let new_token_denom = copied_from_cw_utils::parse_protobuf_string(&mut data, 1)?;
+        Ok(CreateDenomReponse { new_token_denom })
+    }
+}
+
+// FIXME: just import cw_utils::parse_protobuf_string when it is exported
+mod copied_from_cw_utils {
+    use cosmwasm_std::{StdError, StdResult};
+
+    // Protobuf wire types (https://developers.google.com/protocol-buffers/docs/encoding)
+    const WIRE_TYPE_LENGTH_DELIMITED: u8 = 2;
+    // Up to 9 bytes of varints as a practical limit (https://github.com/multiformats/unsigned-varint#practical-maximum-of-9-bytes-for-security)
+    const VARINT_MAX_BYTES: usize = 9;
+
+    pub fn parse_protobuf_string(data: &mut Vec<u8>, field_number: u8) -> StdResult<String> {
+        let str_field = parse_protobuf_length_prefixed(data, field_number)?;
+        Ok(String::from_utf8(str_field)?)
+    }
+
+    /// Helper function to parse length-prefixed protobuf fields.
+    /// The remaining of the data is kept in the data parameter.
+    fn parse_protobuf_length_prefixed(data: &mut Vec<u8>, field_number: u8) -> StdResult<Vec<u8>> {
+        if data.is_empty() {
+            return Ok(vec![]);
+        };
+        let mut rest_1 = data.split_off(1);
+        let wire_type = data[0] & 0b11;
+        let field = data[0] >> 3;
+
+        if field != field_number {
+            return Err(StdError::parse_err(
+                "length_prefix_field",
+                format!(
+                    "failed to decode Protobuf message: invalid field #{} for field #{}",
+                    field, field_number
+                ),
+            ));
+        }
+        if wire_type != WIRE_TYPE_LENGTH_DELIMITED {
+            return Err(StdError::parse_err(
+                "length_prefix_field",
+                format!(
+                    "failed to decode Protobuf message: field #{}: invalid wire type {}",
+                    field_number, wire_type
+                ),
+            ));
+        }
+
+        let len = parse_protobuf_varint(&mut rest_1, field_number)?;
+        if rest_1.len() < len {
+            return Err(StdError::parse_err(
+                "length_prefix_field",
+                format!(
+                    "failed to decode Protobuf message: field #{}: message too short",
+                    field_number
+                ),
+            ));
+        }
+        *data = rest_1.split_off(len);
+
+        Ok(rest_1)
+    }
+
+    /// Base128 varint decoding.
+    /// The remaining of the data is kept in the data parameter.
+    fn parse_protobuf_varint(data: &mut Vec<u8>, field_number: u8) -> StdResult<usize> {
+        let data_len = data.len();
+        let mut len: u64 = 0;
+        let mut i = 0;
+        while i < VARINT_MAX_BYTES {
+            if data_len == i {
+                return Err(StdError::parse_err(
+                    "varint",
+                    format!(
+                        "failed to decode Protobuf message: field #{}: varint data too short",
+                        field_number
+                    ),
+                ));
+            }
+            len += ((data[i] & 0x7f) as u64) << (i * 7);
+            if data[i] & 0x80 == 0 {
+                break;
+            }
+            i += 1;
+        }
+        if i == VARINT_MAX_BYTES {
+            return Err(StdError::parse_err(
+                "varint",
+                format!(
+                    "failed to decode Protobuf message: field #{}: varint data too long",
+                    field_number
+                ),
+            ));
+        }
+        *data = data[i + 1..].to_owned();
+
+        Ok(len as usize) // Gently fall back to the arch's max addressable size
+    }
+}

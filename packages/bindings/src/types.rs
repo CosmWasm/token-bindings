@@ -1,4 +1,5 @@
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Coin;
 
 /// This maps to cosmos.bank.v1beta1.Metadata protobuf struct
 #[cw_serde]
@@ -30,4 +31,11 @@ pub struct DenomUnit {
     exponent: u32,
     /// aliases is a list of string aliases for the given denom
     aliases: Vec<String>,
+}
+
+/// This maps to osmosis.tokenfactory.v1beta1.Params protobuf struct
+#[cw_serde]
+pub struct Params {
+    /// TODO: verify semantics - does it charge all of these or one of these?
+    pub denom_creation_fee: Vec<Coin>,
 }

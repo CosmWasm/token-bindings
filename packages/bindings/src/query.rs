@@ -1,4 +1,4 @@
-use crate::metadata::Metadata;
+use crate::types::{Metadata, Params};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{CustomQuery, QueryRequest};
 
@@ -34,6 +34,9 @@ pub enum TokenQuery {
     /// (Admin may have changed)
     #[returns(DenomsByCreatorResponse)]
     DenomsByCreator { creator: String },
+    /// Returns configuration params for TokenFactory modules
+    #[returns(ParamsResponse)]
+    Params {},
 }
 
 impl CustomQuery for TokenFactoryQuery {}
@@ -63,4 +66,9 @@ pub struct AdminResponse {
 #[cw_serde]
 pub struct DenomsByCreatorResponse {
     pub denoms: Vec<String>,
+}
+
+#[cw_serde]
+pub struct ParamsResponse {
+    pub params: Params,
 }
