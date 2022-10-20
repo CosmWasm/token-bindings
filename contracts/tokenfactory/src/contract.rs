@@ -259,6 +259,7 @@ mod tests {
                     }
                     SystemResult::Ok(ContractResult::Ok(binary_request))
                 }
+                _ => todo!(),
             });
         mock_dependencies_with_custom_quierier(custom_querier)
     }

@@ -14,15 +14,21 @@ use cosmwasm_std::{
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BankSudo, BasicAppBuilder, CosmosRouter, Module, WasmKeeper,
 };
+use cw_storage_plus::Map;
+
+use token_bindings::{
+    FullDenomResponse, Metadata, TokenFactoryMsg, TokenFactoryQuery, TokenMsg, TokenQuery,
+};
 
 use crate::error::ContractError;
-use token_bindings::{FullDenomResponse, TokenFactoryMsg, TokenFactoryQuery, TokenMsg, TokenQuery};
 
 pub struct TokenFactoryModule {}
 
 /// How many seconds per block
 /// (when we increment block.height, use this multiplier for block.time)
 pub const BLOCK_TIME: u64 = 5;
+
+const _METADATA: Map<&str, Metadata> = Map::new("metadata");
 
 impl TokenFactoryModule {
     fn build_denom(&self, creator: &Addr, subdenom: &str) -> Result<String, ContractError> {
@@ -95,17 +101,15 @@ impl Module for TokenFactoryModule {
                 denom: _,
                 amount: _,
                 burn_from_address: _,
-            } => Ok(AppResponse {
-                data: None,
-                events: vec![],
-            }),
+            } => todo!(),
             TokenMsg::ChangeAdmin {
-                denom: _denom,
-                new_admin_address: _new_admin_address,
-            } => Ok(AppResponse {
-                data: None,
-                events: vec![],
-            }),
+                denom: _,
+                new_admin_address: _,
+            } => todo!(),
+            TokenMsg::SetMetadata {
+                denom: _,
+                metadata: _,
+            } => todo!(),
         }
     }
 
@@ -143,6 +147,10 @@ impl Module for TokenFactoryModule {
                 let res = FullDenomResponse { denom };
                 Ok(to_binary(&res)?)
             }
+            TokenQuery::Metadata { denom: _ } => todo!(),
+            TokenQuery::Admin { denom: _ } => todo!(),
+            TokenQuery::DenomsByCreator { creator: _ } => todo!(),
+            TokenQuery::Params {} => todo!(),
         }
     }
 }

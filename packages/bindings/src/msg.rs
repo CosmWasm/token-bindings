@@ -45,7 +45,10 @@ pub enum TokenMsg {
         amount: Uint128,
         burn_from_address: String,
     },
-    SetMetadata(Metadata),
+    SetMetadata {
+        denom: String,
+        metadata: Metadata,
+    },
 }
 
 impl TokenMsg {
