@@ -1,9 +1,10 @@
+use crate::metadata::Metadata;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{CustomQuery, QueryRequest};
 
 #[cw_serde]
 pub enum TokenFactoryQuery {
-    // TODO: test how this works with cw_serde
+    // Note: embded enums don't work with QueryResponses currently
     Token(TokenQuery),
 }
 
@@ -19,7 +20,20 @@ pub enum TokenQuery {
         creator_addr: String,
         subdenom: String,
     },
-    // TODO: more about metadata? owner?
+    /// Returns the metadata set for this denom, if present. May return None.
+    /// This will also return metadata for native tokens created outside
+    /// of the token factory (like staking tokens)
+    #[returns(MetadataResponse)]
+    Metadata { denom: String },
+    /// Returns info on admin of the denom, only if created/managed via token factory.
+    /// Errors if denom doesn't exist or was created by another module.
+    #[returns(AdminResponse)]
+    Admin { denom: String },
+    /// List all denoms that were created by the given creator.
+    /// This does not imply all tokens currently managed by the creator.
+    /// (Admin may have changed)
+    #[returns(DenomsByCreatorResponse)]
+    DenomsByCreator { creator: String },
 }
 
 impl CustomQuery for TokenFactoryQuery {}
@@ -33,4 +47,20 @@ impl From<TokenQuery> for QueryRequest<TokenFactoryQuery> {
 #[cw_serde]
 pub struct FullDenomResponse {
     pub denom: String,
+}
+
+#[cw_serde]
+pub struct MetadataResponse {
+    /// Empty if this was never set for the given denom
+    pub metadata: Option<Metadata>,
+}
+
+#[cw_serde]
+pub struct AdminResponse {
+    pub admin: String,
+}
+
+#[cw_serde]
+pub struct DenomsByCreatorResponse {
+    pub denoms: Vec<String>,
 }

@@ -1,10 +1,11 @@
+mod metadata;
 mod msg;
 mod querier;
 mod query;
 
 pub use msg::{TokenFactoryMsg, TokenMsg};
 pub use querier::TokenQuerier;
-pub use query::{TokenFactoryQuery, FullDenomResponse, TokenQuery};
+pub use query::{FullDenomResponse, TokenFactoryQuery, TokenQuery};
 
 // This is a signal, such that any contract that imports these helpers will only run on
 // blockchains that support token_factory feature

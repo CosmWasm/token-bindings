@@ -1,3 +1,4 @@
+use crate::metadata::Metadata;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{CosmosMsg, CustomMsg, Uint128};
 
@@ -19,7 +20,9 @@ pub enum TokenMsg {
     /// The (creating contract address, subdenom) pair must be unique.
     /// The created denom's admin is the creating contract address,
     /// but this admin can be changed using the UpdateAdmin binding.
-    CreateDenom { subdenom: String },
+    CreateDenom {
+        subdenom: String,
+    },
     /// ChangeAdmin changes the admin for a factory denom.
     /// Can only be called by the current contract admin.
     /// If the NewAdminAddress is empty, the denom will have no admin.
@@ -42,7 +45,7 @@ pub enum TokenMsg {
         amount: Uint128,
         burn_from_address: String,
     },
-    // TODO: consider more meta-data extensions
+    SetMetadata(Metadata),
 }
 
 impl TokenMsg {

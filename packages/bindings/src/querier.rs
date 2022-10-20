@@ -1,6 +1,6 @@
 use cosmwasm_std::{QuerierWrapper, StdResult};
 
-use crate::query::{TokenFactoryQuery, FullDenomResponse, TokenQuery};
+use crate::query::{FullDenomResponse, TokenFactoryQuery, TokenQuery};
 
 /// This is a helper wrapper to easily use our custom queries
 pub struct TokenQuerier<'a> {
