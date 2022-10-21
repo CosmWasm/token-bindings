@@ -3,7 +3,8 @@ workflows:
   version: 2
   test:
     jobs:
-      - contract_osmo_reflect
+      - contract_token_reflect
+      - contract_tokenfactory
       - package_bindings
       - package_bindings_test
   build:
@@ -26,7 +27,7 @@ workflows:
              ignore: /.*/
 
 jobs:
-  contract_osmo_reflect:
+  contract_token_reflect:
     docker:
       - image: rust:1.64.0
     working_directory: ~/project/contracts/reflect
@@ -38,7 +39,7 @@ jobs:
           command: rustc --version; cargo --version; rustup --version
       - restore_cache:
           keys:
-            - cargocache-osmo-reflect-rust:1.64.0-{{ checksum "~/project/Cargo.lock" }}
+            - cargocache-token-reflect-rust:1.64.0-{{ checksum "~/project/Cargo.lock" }}
       - run:
           name: Unit Tests
           environment:
@@ -51,7 +52,34 @@ jobs:
           paths:
             - /usr/local/cargo/registry
             - target
-          key: cargocache-osmo-reflect-rust:1.64.0-{{ checksum "~/project/Cargo.lock" }}
+          key: cargocache-token-reflect-rust:1.64.0-{{ checksum "~/project/Cargo.lock" }}
+
+  contract_tokenfactory:
+    docker:
+      - image: rust:1.64.0
+    working_directory: ~/project/contracts/tokenfactory
+    steps:
+      - checkout:
+          path: ~/project
+      - run:
+          name: Version information
+          command: rustc --version; cargo --version; rustup --version
+      - restore_cache:
+          keys:
+            - cargocache-tokenfactory-rust:1.64.0-{{ checksum "~/project/Cargo.lock" }}
+      - run:
+          name: Unit Tests
+          environment:
+            RUST_BACKTRACE: 1
+          command: cargo test --locked
+      - run:
+          name: Build and run schema generator
+          command: cargo schema --locked
+      - save_cache:
+          paths:
+            - /usr/local/cargo/registry
+            - target
+          key: cargocache-tokenfactory-rust:1.64.0-{{ checksum "~/project/Cargo.lock" }}
 
   package_bindings:
     docker:
