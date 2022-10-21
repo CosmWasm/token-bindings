@@ -17,7 +17,7 @@ use cw_multi_test::{
 use cw_storage_plus::Map;
 
 use token_bindings::{
-    AdminResponse, CreateDenomReponse, DenomsByCreatorResponse, FullDenomResponse, Metadata,
+    AdminResponse, CreateDenomResponse, DenomsByCreatorResponse, FullDenomResponse, Metadata,
     MetadataResponse, TokenFactoryMsg, TokenFactoryQuery, TokenMsg, TokenQuery,
 };
 
@@ -94,7 +94,7 @@ impl Module for TokenFactoryModule {
                 denoms.push(new_token_denom.clone());
                 DENOMS_BY_CREATOR.save(storage, &sender, &denoms)?;
 
-                let data = Some(CreateDenomReponse { new_token_denom }.encode()?);
+                let data = Some(CreateDenomResponse { new_token_denom }.encode()?);
                 Ok(AppResponse {
                     data,
                     events: vec![],
@@ -335,8 +335,7 @@ mod tests {
             mint_to_address: rcpt.to_string(),
         };
 
-        // simulate contract calling
-        // TODO: How is this not erroring, the token isn't created
+        // fails to mint token before creating it
         let err = app
             .execute(contract.clone(), msg.clone().into())
             .unwrap_err();

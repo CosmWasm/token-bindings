@@ -83,18 +83,18 @@ impl CustomMsg for TokenFactoryMsg {}
 
 /// This is in the data field in the reply from a TokenMsg::CreateDenom SubMsg
 /// Custom code to parse from protobuf with minimal wasm bytecode bloat
-pub struct CreateDenomReponse {
+pub struct CreateDenomResponse {
     pub new_token_denom: String,
 }
 
-impl CreateDenomReponse {
+impl CreateDenomResponse {
     /// Call this to process data field from the SubMsg data field
     pub fn from_reply_data(data: Binary) -> StdResult<Self> {
         // Manual protobuf decoding
         let mut data = Vec::from(data);
         // Parse contract addr
         let new_token_denom = copied_from_cw_utils::parse_protobuf_string(&mut data, 1)?;
-        Ok(CreateDenomReponse { new_token_denom })
+        Ok(CreateDenomResponse { new_token_denom })
     }
 
     pub fn encode(&self) -> StdResult<Binary> {
