@@ -77,7 +77,7 @@ impl Module for TokenFactoryModule {
     {
         let TokenFactoryMsg::Token(msg) = msg;
         match msg {
-            TokenMsg::CreateDenom { subdenom } => {
+            TokenMsg::CreateDenom { subdenom, metadata } => {
                 let new_token_denom = self.build_denom(&sender, &subdenom)?;
 
                 // errors if the denom was already created
@@ -93,6 +93,11 @@ impl Module for TokenFactoryModule {
                     .unwrap_or_default();
                 denoms.push(new_token_denom.clone());
                 DENOMS_BY_CREATOR.save(storage, &sender, &denoms)?;
+
+                // set metadata if provided
+                if let Some(md) = metadata {
+                    METADATA.save(storage, &new_token_denom, &md)?;
+                }
 
                 let data = Some(CreateDenomResponse { new_token_denom }.encode()?);
                 Ok(AppResponse {
@@ -347,6 +352,14 @@ mod tests {
         // create the token now
         let create = TokenMsg::CreateDenom {
             subdenom: subdenom.to_string(),
+            metadata: Some(Metadata {
+                description: Some("Awesome token, get it now!".to_string()),
+                denom_units: vec![],
+                base: None,
+                display: Some("FUNDZ".to_string()),
+                name: Some("Fundz pays".to_string()),
+                symbol: Some("FUNDZ".to_string()),
+            }),
         };
         app.execute(contract.clone(), create.into()).unwrap();
 

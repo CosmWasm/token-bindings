@@ -20,8 +20,12 @@ pub enum TokenMsg {
     /// The (creating contract address, subdenom) pair must be unique.
     /// The created denom's admin is the creating contract address,
     /// but this admin can be changed using the UpdateAdmin binding.
+    ///
+    /// If you set an initial metadata here, this is equivalent
+    /// to calling SetMetadata directly on the returned denom.
     CreateDenom {
         subdenom: String,
+        metadata: Option<Metadata>,
     },
     /// ChangeAdmin changes the admin for a factory denom.
     /// Can only be called by the current contract admin.
