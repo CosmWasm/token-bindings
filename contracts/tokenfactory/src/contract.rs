@@ -63,7 +63,10 @@ pub fn create_denom(subdenom: String) -> Result<Response<TokenFactoryMsg>, Token
         return Err(TokenFactoryError::InvalidSubdenom { subdenom });
     }
 
-    let create_denom_msg = TokenMsg::CreateDenom { subdenom };
+    let create_denom_msg = TokenMsg::CreateDenom {
+        subdenom,
+        metadata: None,
+    };
 
     let res = Response::new()
         .add_attribute("method", "create_denom")
@@ -259,6 +262,7 @@ mod tests {
                     }
                     SystemResult::Ok(ContractResult::Ok(binary_request))
                 }
+                _ => todo!(),
             });
         mock_dependencies_with_custom_quierier(custom_querier)
     }
@@ -309,6 +313,7 @@ mod tests {
 
         let expected_message = CosmosMsg::from(TokenMsg::CreateDenom {
             subdenom: String::from(DENOM_NAME),
+            metadata: None,
         });
         let actual_message = res.messages.get(0).unwrap();
         assert_eq!(expected_message, actual_message.msg);

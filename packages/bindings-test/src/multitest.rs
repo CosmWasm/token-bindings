@@ -14,15 +14,29 @@ use cosmwasm_std::{
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BankSudo, BasicAppBuilder, CosmosRouter, Module, WasmKeeper,
 };
+use cw_storage_plus::Map;
+
+use token_bindings::{
+    AdminResponse, CreateDenomResponse, DenomsByCreatorResponse, FullDenomResponse, Metadata,
+    MetadataResponse, TokenFactoryMsg, TokenFactoryQuery, TokenMsg, TokenQuery,
+};
 
 use crate::error::ContractError;
-use token_bindings::{FullDenomResponse, TokenFactoryMsg, TokenFactoryQuery, TokenMsg, TokenQuery};
 
 pub struct TokenFactoryModule {}
 
 /// How many seconds per block
 /// (when we increment block.height, use this multiplier for block.time)
 pub const BLOCK_TIME: u64 = 5;
+
+// map denom to metadata
+const METADATA: Map<&str, Metadata> = Map::new("metadata");
+
+// map denom to admin
+const ADMIN: Map<&str, Addr> = Map::new("admin");
+
+// map creator to denoms
+const DENOMS_BY_CREATOR: Map<&Addr, Vec<String>> = Map::new("denom");
 
 impl TokenFactoryModule {
     fn build_denom(&self, creator: &Addr, subdenom: &str) -> Result<String, ContractError> {
@@ -63,10 +77,29 @@ impl Module for TokenFactoryModule {
     {
         let TokenFactoryMsg::Token(msg) = msg;
         match msg {
-            TokenMsg::CreateDenom { subdenom } => {
-                // TODO: Simulate denom creation, and add existence checks in MintTokens
-                let denom = self.build_denom(&sender, &subdenom)?;
-                let data = Some(to_binary(&FullDenomResponse { denom })?);
+            TokenMsg::CreateDenom { subdenom, metadata } => {
+                let new_token_denom = self.build_denom(&sender, &subdenom)?;
+
+                // errors if the denom was already created
+                if ADMIN.may_load(storage, &new_token_denom)?.is_some() {
+                    return Err(ContractError::TokenExists.into());
+                }
+                ADMIN.save(storage, &new_token_denom, &sender)?;
+
+                // TODO: charge the creation fee (once params is supported)
+
+                let mut denoms = DENOMS_BY_CREATOR
+                    .may_load(storage, &sender)?
+                    .unwrap_or_default();
+                denoms.push(new_token_denom.clone());
+                DENOMS_BY_CREATOR.save(storage, &sender, &denoms)?;
+
+                // set metadata if provided
+                if let Some(md) = metadata {
+                    METADATA.save(storage, &new_token_denom, &md)?;
+                }
+
+                let data = Some(CreateDenomResponse { new_token_denom }.encode()?);
                 Ok(AppResponse {
                     data,
                     events: vec![],
@@ -77,35 +110,53 @@ impl Module for TokenFactoryModule {
                 amount,
                 mint_to_address,
             } => {
-                // TODO: This currently incorrectly simulates the Osmosis functionality, as it does not
-                // check admin functionality on the denom / that the denom was actually created
+                // ensure we are admin of this denom (and it exists)
+                let admin = ADMIN
+                    .may_load(storage, &denom)?
+                    .ok_or(ContractError::TokenDoesntExist)?;
+                if admin != sender {
+                    return Err(ContractError::NotTokenAdmin.into());
+                }
                 let mint = BankSudo::Mint {
                     to_address: mint_to_address,
                     amount: coins(amount.u128(), &denom),
                 };
                 router.sudo(api, storage, block, mint.into())?;
-
-                let data = Some(to_binary(&FullDenomResponse { denom })?);
-                Ok(AppResponse {
-                    data,
-                    events: vec![],
-                })
+                Ok(AppResponse::default())
             }
             TokenMsg::BurnTokens {
                 denom: _,
                 amount: _,
                 burn_from_address: _,
-            } => Ok(AppResponse {
-                data: None,
-                events: vec![],
-            }),
+            } => todo!(),
             TokenMsg::ChangeAdmin {
-                denom: _denom,
-                new_admin_address: _new_admin_address,
-            } => Ok(AppResponse {
-                data: None,
-                events: vec![],
-            }),
+                denom,
+                new_admin_address,
+            } => {
+                // ensure we are admin of this denom (and it exists)
+                let admin = ADMIN
+                    .may_load(storage, &denom)?
+                    .ok_or(ContractError::TokenDoesntExist)?;
+                if admin != sender {
+                    return Err(ContractError::NotTokenAdmin.into());
+                }
+                // and new admin is valid
+                let new_admin = api.addr_validate(&new_admin_address)?;
+                ADMIN.save(storage, &denom, &new_admin)?;
+                Ok(AppResponse::default())
+            }
+            TokenMsg::SetMetadata { denom, metadata } => {
+                // ensure we are admin of this denom (and it exists)
+                let admin = ADMIN
+                    .may_load(storage, &denom)?
+                    .ok_or(ContractError::TokenDoesntExist)?;
+                if admin != sender {
+                    return Err(ContractError::NotTokenAdmin.into());
+                }
+                // FIXME: add validation of metadata
+                METADATA.save(storage, &denom, &metadata)?;
+                Ok(AppResponse::default())
+            }
         }
     }
 
@@ -127,7 +178,7 @@ impl Module for TokenFactoryModule {
     fn query(
         &self,
         api: &dyn Api,
-        _storage: &dyn Storage,
+        storage: &dyn Storage,
         _querier: &dyn Querier,
         _block: &BlockInfo,
         request: TokenFactoryQuery,
@@ -143,6 +194,22 @@ impl Module for TokenFactoryModule {
                 let res = FullDenomResponse { denom };
                 Ok(to_binary(&res)?)
             }
+            TokenQuery::Metadata { denom } => {
+                let metadata = METADATA.may_load(storage, &denom)?;
+                Ok(to_binary(&MetadataResponse { metadata })?)
+            }
+            TokenQuery::Admin { denom } => {
+                let admin = ADMIN.load(storage, &denom)?.to_string();
+                Ok(to_binary(&AdminResponse { admin })?)
+            }
+            TokenQuery::DenomsByCreator { creator } => {
+                let creator = api.addr_validate(&creator)?;
+                let denoms = DENOMS_BY_CREATOR
+                    .may_load(storage, &creator)?
+                    .unwrap_or_default();
+                Ok(to_binary(&DenomsByCreatorResponse { denoms })?)
+            }
+            TokenQuery::Params {} => todo!(),
         }
     }
 }
@@ -273,8 +340,30 @@ mod tests {
             mint_to_address: rcpt.to_string(),
         };
 
-        // simulate contract calling
-        // TODO: How is this not erroring, the token isn't created
+        // fails to mint token before creating it
+        let err = app
+            .execute(contract.clone(), msg.clone().into())
+            .unwrap_err();
+        assert_eq!(
+            err.downcast::<ContractError>().unwrap(),
+            ContractError::TokenDoesntExist
+        );
+
+        // create the token now
+        let create = TokenMsg::CreateDenom {
+            subdenom: subdenom.to_string(),
+            metadata: Some(Metadata {
+                description: Some("Awesome token, get it now!".to_string()),
+                denom_units: vec![],
+                base: None,
+                display: Some("FUNDZ".to_string()),
+                name: Some("Fundz pays".to_string()),
+                symbol: Some("FUNDZ".to_string()),
+            }),
+        };
+        app.execute(contract.clone(), create.into()).unwrap();
+
+        // now we can mint
         app.execute(contract, msg.into()).unwrap();
 
         // we got tokens!
