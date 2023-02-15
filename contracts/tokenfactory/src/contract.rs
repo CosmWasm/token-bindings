@@ -5,10 +5,11 @@ use cosmwasm_std::{
 };
 use cw2::set_contract_version;
 
+use token_bindings::{Metadata, TokenFactoryMsg, TokenFactoryQuery, TokenMsg, TokenQuerier};
+
 use crate::error::TokenFactoryError;
 use crate::msg::{ExecuteMsg, GetDenomResponse, InstantiateMsg, QueryMsg};
 use crate::state::{State, STATE};
-use token_bindings::{TokenFactoryMsg, TokenFactoryQuery, TokenMsg, TokenQuerier};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:tokenfactory-demo";
@@ -40,7 +41,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response<TokenFactoryMsg>, TokenFactoryError> {
     match msg {
-        ExecuteMsg::CreateDenom { subdenom } => create_denom(subdenom),
+        ExecuteMsg::CreateDenom { subdenom, metadata } => create_denom(subdenom, metadata),
         ExecuteMsg::ChangeAdmin {
             denom,
             new_admin_address,
@@ -58,15 +59,15 @@ pub fn execute(
     }
 }
 
-pub fn create_denom(subdenom: String) -> Result<Response<TokenFactoryMsg>, TokenFactoryError> {
-    if subdenom.eq("") {
+pub fn create_denom(
+    subdenom: String,
+    metadata: Option<Metadata>,
+) -> Result<Response<TokenFactoryMsg>, TokenFactoryError> {
+    if subdenom.is_empty() {
         return Err(TokenFactoryError::InvalidSubdenom { subdenom });
     }
 
-    let create_denom_msg = TokenMsg::CreateDenom {
-        subdenom,
-        metadata: None,
-    };
+    let create_denom_msg = TokenMsg::CreateDenom { subdenom, metadata };
 
     let res = Response::new()
         .add_attribute("method", "create_denom")
@@ -212,7 +213,8 @@ fn validate_denom(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::marker::PhantomData;
+
     use cosmwasm_std::testing::{
         mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
     };
@@ -220,9 +222,11 @@ mod tests {
         coins, from_binary, Attribute, ContractResult, CosmosMsg, OwnedDeps, Querier, StdError,
         SystemError, SystemResult,
     };
-    use std::marker::PhantomData;
-    use token_bindings::TokenQuery;
+
+    use token_bindings::{DenomUnit, TokenQuery};
     use token_bindings_test::TokenFactoryApp;
+
+    use super::*;
 
     const DENOM_NAME: &str = "mydenom";
     const DENOM_PREFIX: &str = "factory";
@@ -305,7 +309,21 @@ mod tests {
 
         let subdenom: String = String::from(DENOM_NAME);
 
-        let msg = ExecuteMsg::CreateDenom { subdenom };
+        let msg = ExecuteMsg::CreateDenom {
+            subdenom,
+            metadata: Some(Metadata {
+                description: Some("description".to_string()),
+                denom_units: vec![DenomUnit {
+                    denom: DENOM_NAME.to_string(),
+                    exponent: 6,
+                    aliases: vec![],
+                }],
+                base: Some(format!("{}{}", "u", DENOM_NAME)),
+                display: Some(DENOM_NAME.to_string()),
+                name: Some(format!("{} {}", DENOM_NAME, "Token")),
+                symbol: Some(DENOM_NAME.to_string()),
+            }),
+        };
         let info = mock_info("creator", &coins(2, "token"));
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
@@ -313,7 +331,18 @@ mod tests {
 
         let expected_message = CosmosMsg::from(TokenMsg::CreateDenom {
             subdenom: String::from(DENOM_NAME),
-            metadata: None,
+            metadata: Some(Metadata {
+                description: Some("description".to_string()),
+                denom_units: vec![DenomUnit {
+                    denom: DENOM_NAME.to_string(),
+                    exponent: 6,
+                    aliases: vec![],
+                }],
+                base: Some(format!("{}{}", "u", DENOM_NAME)),
+                display: Some(DENOM_NAME.to_string()),
+                name: Some(format!("{} {}", DENOM_NAME, "Token")),
+                symbol: Some(DENOM_NAME.to_string()),
+            }),
         });
         let actual_message = res.messages.get(0).unwrap();
         assert_eq!(expected_message, actual_message.msg);
@@ -333,7 +362,10 @@ mod tests {
 
         let subdenom: String = String::from("");
 
-        let msg = ExecuteMsg::CreateDenom { subdenom };
+        let msg = ExecuteMsg::CreateDenom {
+            subdenom,
+            metadata: None,
+        };
         let info = mock_info("creator", &coins(2, "token"));
         let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert_eq!(

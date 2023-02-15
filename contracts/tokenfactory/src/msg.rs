@@ -1,5 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Uint128;
+use token_bindings::Metadata;
 
 #[cw_serde]
 pub struct InstantiateMsg {}
@@ -8,6 +9,7 @@ pub struct InstantiateMsg {}
 pub enum ExecuteMsg {
     CreateDenom {
         subdenom: String,
+        metadata: Option<Metadata>,
     },
     ChangeAdmin {
         denom: String,
