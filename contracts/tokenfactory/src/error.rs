@@ -18,9 +18,6 @@ pub enum TokenFactoryError {
     #[error("denom does not exist: {denom:?}")]
     DenomDoesNotExist { denom: String },
 
-    #[error("address is not supported yet, was: {address:?}")]
-    BurnFromAddressNotSupported { address: String },
-
     #[error("amount was zero, must be positive")]
     ZeroAmount {},
 }

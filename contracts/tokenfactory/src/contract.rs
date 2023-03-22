@@ -55,6 +55,12 @@ pub fn execute(
             amount,
             burn_from_address,
         } => burn_tokens(deps, denom, amount, burn_from_address),
+        ExecuteMsg::ForceTransfer {
+            denom,
+            amount,
+            from_address,
+            to_address,
+        } => force_transfer(deps, denom, amount, from_address, to_address),
     }
 }
 
@@ -125,12 +131,6 @@ pub fn burn_tokens(
     amount: Uint128,
     burn_from_address: String,
 ) -> Result<Response<TokenFactoryMsg>, TokenFactoryError> {
-    if !burn_from_address.is_empty() {
-        return Result::Err(TokenFactoryError::BurnFromAddressNotSupported {
-            address: burn_from_address,
-        });
-    }
-
     if amount.eq(&Uint128::new(0_u128)) {
         return Result::Err(TokenFactoryError::ZeroAmount {});
     }
@@ -142,6 +142,28 @@ pub fn burn_tokens(
     let res = Response::new()
         .add_attribute("method", "burn_tokens")
         .add_message(burn_token_msg);
+
+    Ok(res)
+}
+
+pub fn force_transfer(
+    deps: DepsMut<TokenFactoryQuery>,
+    denom: String,
+    amount: Uint128,
+    from_address: String,
+    to_address: String,
+) -> Result<Response<TokenFactoryMsg>, TokenFactoryError> {
+    if amount.eq(&Uint128::new(0_u128)) {
+        return Result::Err(TokenFactoryError::ZeroAmount {});
+    }
+
+    validate_denom(deps, denom.clone())?;
+
+    let force_msg = TokenMsg::force_transfer_tokens(denom, amount, from_address, to_address);
+
+    let res = Response::new()
+        .add_attribute("method", "force_transfer_tokens")
+        .add_message(force_msg);
 
     Ok(res)
 }
@@ -554,13 +576,32 @@ mod tests {
             burn_from_address: String::from(BURN_FROM_ADDR),
             amount: burn_amount,
         };
-        let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        let err = execute(deps.as_mut(), mock_env(), info, msg).is_err();        
+        assert_eq!(err, false)
+    }
 
-        let expected_error = TokenFactoryError::BurnFromAddressNotSupported {
-            address: String::from(BURN_FROM_ADDR),
+    #[test]
+    fn msg_force_transfer_tokens_address() {
+        let mut deps = mock_dependencies();
+
+        const TRANSFER_FROM_ADDR: &str = "transferme";
+        const TRANSFER_TO_ADDR: &str = "tome";
+
+        let transfer_amount = Uint128::new(100_u128);
+        let full_denom_name: &str =
+            &format!("{}/{}/{}", DENOM_PREFIX, MOCK_CONTRACT_ADDR, DENOM_NAME)[..];
+
+        let info = mock_info("creator", &coins(2, "token"));
+
+        let msg = ExecuteMsg::ForceTransfer { 
+            denom: String::from(full_denom_name), 
+            amount: transfer_amount, 
+            from_address: TRANSFER_FROM_ADDR.to_string(), 
+            to_address: TRANSFER_TO_ADDR.to_string(),
         };
 
-        assert_eq!(expected_error, err)
+        let err = execute(deps.as_mut(), mock_env(), info, msg).is_err();        
+        assert_eq!(err, false)
     }
 
     #[test]

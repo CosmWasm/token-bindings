@@ -43,11 +43,18 @@ pub enum TokenMsg {
     },
     /// Contracts can burn native tokens for an existing factory denom
     /// that they are the admin of.
-    /// Currently, the burn from address must be the admin contract.
     BurnTokens {
         denom: String,
         amount: Uint128,
         burn_from_address: String,
+    },
+    /// Contracts can force transfer tokens for an existing factory denom
+    /// that they are the admin of.    
+    ForceTransfer {
+        denom: String,
+        amount: Uint128,
+        from_address: String,
+        to_address: String,
     },
     SetMetadata {
         denom: String,
@@ -67,12 +74,26 @@ impl TokenMsg {
     pub fn burn_contract_tokens(
         denom: String,
         amount: Uint128,
-        _burn_from_address: String,
+        burn_from_address: String,
     ) -> Self {
         TokenMsg::BurnTokens {
             denom,
             amount,
-            burn_from_address: "".to_string(), // burn_from_address is currently disabled.
+            burn_from_address,
+        }
+    }
+
+    pub fn force_transfer_tokens(
+        denom: String,
+        amount: Uint128,
+        from_address: String,
+        to_address: String,
+    ) -> Self {
+        TokenMsg::ForceTransfer {
+            denom,
+            amount,
+            from_address,
+            to_address,
         }
     }
 }

@@ -129,6 +129,12 @@ impl Module for TokenFactoryModule {
                 amount: _,
                 burn_from_address: _,
             } => todo!(),
+            TokenMsg::ForceTransfer {
+                denom: _,
+                amount: _,
+                from_address: _,
+                to_address: _,
+            } => todo!(),
             TokenMsg::ChangeAdmin {
                 denom,
                 new_admin_address,

@@ -23,6 +23,12 @@ pub enum ExecuteMsg {
         amount: Uint128,
         burn_from_address: String,
     },
+    ForceTransfer {
+        denom: String,
+        amount: Uint128,
+        from_address: String,
+        to_address: String,
+    },
 }
 
 #[cw_serde]
